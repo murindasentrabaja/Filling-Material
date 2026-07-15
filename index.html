@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Realtime Material Filling - PT Murinda Sentra Baja</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 25px;
+        }
+        .header-title {
+            color: #003366;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 25px;
+            border-bottom: 3px solid #003366;
+            padding-bottom: 10px;
+        }
+        .summary-card {
+            border-radius: 10px;
+            color: white;
+            padding: 22px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .summary-card:hover { transform: translateY(-3px); }
+        .card-kedatangan { background: linear-gradient(45deg, #1d976c, #93f9b9); color: #fff; }
+        .card-penggunaan { background: linear-gradient(45deg, #eb3349, #f45c43); color: #fff; }
+        .card-sisa { background: linear-gradient(45deg, #1e3c72, #2a5298); color: #fff; }
+        
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        }
+        .table-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .table thead {
+            background-color: #003366;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .badge-material {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            font-weight: 600;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; padding: 0; }
+            .table-container { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center flex-wrap no-print">
+            <h3 class="header-title">Portal Material Filling</h3>
+            <div class="mb-3">
+                <button class="btn btn-primary me-2" id="btnRefresh" onclick="loadData()">🔄 Sinkronisasi Data</button>
+                <button class="btn btn-secondary me-2" onclick="window.print()">🖨️ Cetak PDF</button>
+                <button class="btn btn-success" onclick="exportToExcel()">📊 Export Microsoft Excel</button>
+            </div>
+        </div>
+
+        <div class="filter-section no-print">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Client</label>
+                    <select id="filterClient" class="form-select" onchange="onClientChange()">
+                        <option value="">-- Semua Client --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Unit Number</label>
+                    <select id="filterUnit" class="form-select" onchange="filterTables()">
+                        <option value="">-- Semua Unit --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Periode Penggunaan</label>
+                    <select id="filterBulan" class="form-select" onchange="filterTables()">
+                        <option value="">-- Semua Periode --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Material (Kedatangan)</label>
+                    <select id="filterMaterial" class="form-select" onchange="filterTables()">
+                        <option value="">-- Semua Material --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="text-end mt-2">
+                <span class="text-muted small">Data terhubung langsung ke spreadsheet PT MSB</span>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="summary-card card-kedatangan">
+                    <h6>Total Kedatangan (Jumlah Stock)</h6>
+                    <h2 id="valKedatangan" class="fw-bold">0 Kg</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-card card-penggunaan">
+                    <h6>Total Penggunaan</h6>
+                    <h2 id="valPenggunaan" class="fw-bold">0 Kg</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-card card-sisa">
+                    <h6>Sisa Stok Akhir (Total Stock)</h6>
+                    <h2 id="valSisa" class="fw-bold">0 Kg</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h5 class="fw-bold text-dark mb-3">📈 Tren Penggunaan Material per Bulan (Kg)</h5>
+            <div style="height: 350px;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h5 class="fw-bold text-dark mb-3">📌 Monitoring Material Filling</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle" id="tblMonitoring">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Material Filling</th>
+                            <th>Total Kedatangan</th>
+                            <th>Total Penggunaan</th>
+                            <th>Total Sisa Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyMonitoring">
+                        <tr><td colspan="4" class="text-center text-muted">Menunggu sinkronisasi...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h5 class="fw-bold text-dark mb-3">🚚 Kedatangan Material Filling</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle" id="tblKedatangan">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Material</th>
+                            <th>Berat</th>
+                            <th>Supplier</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyKedatangan">
+                        <tr><td colspan="4" class="text-center text-muted">Menunggu sinkronisasi...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h5 class="fw-bold text-dark mb-3">📋 Filling Process</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle small" id="tblAval" style="min-width: 1500px;">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Serial Number</th>
+                            <th>Unit</th>
+                            <th>Leak Test</th>
+                            <th>Filling Date</th>
+                            <th>Bulan</th>
+                            <th>Scrapping</th>
+                            <th>Aval</th>
+                            <th>Mill Scalle</th>
+                            <th>Pasir Besi</th>
+                            <th>Sting Coal</th>
+                            <th>Besi Cor</th>
+                            <th>Pasir Concentrate</th>
+                            <th>Katalis</th>
+                            <th>Steel Shot</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyAval">
+                        <tr><td colspan="16" class="text-center text-muted">Menunggu sinkronisasi...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Menggunakan URL Apps Script Anda yang pertama kali dikirim
+        const DEPLOY_URL = "https://script.google.com/macros/s/AKfycbzFs6vKIaJjrV1ZuDIh1Gmsj7zZ20L1HNKe5X533EKpoOgTn6_05TmVae_oFjrMzPws/exec"; 
+
+        let globalData = { monitoring: [], kedatangan: [], aval: [], summaryChart: [] };
+        let myChart = null;
+
+        function loadData() {
+            const btn = document.getElementById("btnRefresh");
+            btn.innerHTML = "⏳ Mensinkronkan...";
+            btn.disabled = true;
+
+            fetch(`${DEPLOY_URL}?action=getData`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Respon jaringan tidak OK.");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    globalData = data;
+                    renderCards(data);
+                    populateFilters(data);
+                    initChart();
+                    filterTables(); 
+                    
+                    btn.innerHTML = "🔄 Sinkronisasi Data";
+                    btn.disabled = false;
+                })
+                .catch(error => {
+                    // Pesan error diperjelas agar tahu letak masalahnya
+                    alert("Koneksi gagal (Failed to fetch).\n\nKemungkinan penyebab:\n1. URL Web App belum di-Deploy ulang.\n2. Akses Web App (Who has access) belum diset ke 'Anyone' / 'Siapa saja'.\n\nDetail: " + error.message);
+                    btn.innerHTML = "🔄 Sinkronisasi Data";
+                    btn.disabled = false;
+                });
+        }
+
+        function renderCards(data) {
+            document.getElementById("valKedatangan").innerText = data.summary.totalKedatangan;
+            document.getElementById("valPenggunaan").innerText = data.summary.totalPenggunaan;
+            document.getElementById("valSisa").innerText = data.summary.totalSisa;
+
+            const bodyMon = document.getElementById("bodyMonitoring");
+            let htmlMon = "";
+            data.monitoring.forEach(row => {
+                htmlMon += `<tr>
+                    <td class="fw-bold">${row.material}</td>
+                    <td>${row.jumlahStok}</td>
+                    <td>${row.penggunaan}</td>
+                    <td class="table-primary fw-bold">${row.totalStock}</td>
+                </tr>`;
+            });
+            bodyMon.innerHTML = htmlMon; 
+        }
+
+        function populateFilters(data) {
+            const filterClient = document.getElementById("filterClient");
+            const filterBulan = document.getElementById("filterBulan");
+            const filterMat = document.getElementById("filterMaterial");
+
+            // Populate Client (Membaca dari data di latar belakang)
+            const clients = [...new Set(data.aval.map(item => item.client).filter(c => c && c !== '-'))];
+            filterClient.innerHTML = '<option value="">-- Semua Client --</option>';
+            clients.sort().forEach(c => {
+                filterClient.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+
+            // Populate Periode Bulan
+            const bulans = [...new Set(data.summaryChart.map(item => item.bulan).filter(b => b))];
+            filterBulan.innerHTML = '<option value="">-- Semua Periode --</option>';
+            bulans.forEach(b => {
+                filterBulan.innerHTML += `<option value="${b}">${b}</option>`;
+            });
+
+            // Populate Material
+            const materials = [...new Set(data.monitoring.map(item => item.material).filter(m => m))];
+            filterMat.innerHTML = '<option value="">-- Semua Material --</option>';
+            materials.sort().forEach(m => {
+                filterMat.innerHTML += `<option value="${m}">${m}</option>`;
+            });
+
+            updateUnitDropdown();
+        }
+
+        function updateUnitDropdown() {
+            const selectedClient = document.getElementById("filterClient").value;
+            const filterUnit = document.getElementById("filterUnit");
+            
+            let filteredAval = globalData.aval;
+            if (selectedClient !== "") {
+                filteredAval = filteredAval.filter(item => item.client === selectedClient);
+            }
+            
+            const units = [...new Set(filteredAval.map(item => item.unit).filter(u => u && u !== '-'))];
+            filterUnit.innerHTML = '<option value="">-- Semua Unit --</option>';
+            units.sort().forEach(u => {
+                filterUnit.innerHTML += `<option value="${u}">${u}</option>`;
+            });
+        }
+
+        function onClientChange() {
+            updateUnitDropdown();
+            filterTables();
+        }
+
+        function filterTables() {
+            const selectedClient = document.getElementById("filterClient").value;
+            const selectedUnit = document.getElementById("filterUnit").value;
+            const selectedBulan = document.getElementById("filterBulan").value;
+            const selectedMat = document.getElementById("filterMaterial").value;
+
+            // Filter Tabel Kedatangan
+            const filteredKedatangan = globalData.kedatangan.filter(row => {
+                return selectedMat === "" || row.material === selectedMat;
+            });
+            const bodyKed = document.getElementById("bodyKedatangan");
+            let htmlKed = "";
+            filteredKedatangan.forEach(row => {
+                htmlKed += `<tr><td>${row.tanggal}</td><td><span class="badge badge-material">${row.material}</span></td><td>${row.berat}</td><td>${row.supplier}</td></tr>`;
+            });
+            bodyKed.innerHTML = htmlKed;
+
+            // Filter Tabel Aval
+            const filteredAval = globalData.aval.filter(row => {
+                let matchClient = selectedClient === "" || row.client === selectedClient;
+                let matchUnit = selectedUnit === "" || row.unit === selectedUnit;
+                let matchBulan = selectedBulan === "" || row.bulan === selectedBulan;
+                return matchClient && matchUnit && matchBulan;
+            });
+            const bodyAv = document.getElementById("bodyAval");
+            let htmlAval = "";
+            filteredAval.forEach(row => {
+                // Tampilan hanya sampai total, Client tidak dicetak
+                htmlAval += `<tr>
+                    <td>${row.no}</td>
+                    <td>${row.serial}</td>
+                    <td class="fw-bold text-primary">${row.unit}</td>
+                    <td>${row.leakTest}</td>
+                    <td>${row.fillingDate}</td>
+                    <td>${row.bulan}</td>
+                    <td>${row.scrapping}</td>
+                    <td>${row.aval}</td>
+                    <td>${row.millScalle}</td>
+                    <td>${row.pasirBesi}</td>
+                    <td>${row.stingCoal}</td>
+                    <td>${row.besiCor}</td>
+                    <td>${row.pasirConcentrate}</td>
+                    <td>${row.katalis}</td>
+                    <td>${row.steelShot}</td>
+                    <td class="table-success fw-bold">${row.total}</td>
+                </tr>`;
+            });
+            bodyAv.innerHTML = htmlAval;
+
+            updateChart(selectedBulan);
+        }
+
+        function initChart() {
+            if(myChart) myChart.destroy(); 
+            
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Scrapping', data: [], backgroundColor: '#e74c3c' },
+                        { label: 'Aval', data: [], backgroundColor: '#f1c40f' },
+                        { label: 'Mill Scalle', data: [], backgroundColor: '#f39c12' },
+                        { label: 'Pasir Besi', data: [], backgroundColor: '#e84393' },
+                        { label: 'Sting Coal', data: [], backgroundColor: '#2980b9' },
+                        { label: 'Besi Cor', data: [], backgroundColor: '#d35400' },
+                        { label: 'Pasir Concentrate', data: [], backgroundColor: '#8e44ad' },
+                        { label: 'Katalis', data: [], backgroundColor: '#bdc3c7' },
+                        { label: 'Steel Shot', data: [], backgroundColor: '#2c3e50' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: { mode: 'index', intersect: false },
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function updateChart(selectedBulan) {
+            if (!myChart || !globalData.summaryChart) return;
+
+            let dataToChart = globalData.summaryChart;
+            
+            if (selectedBulan !== "") {
+                dataToChart = dataToChart.filter(item => item.bulan === selectedBulan);
+            }
+
+            myChart.data.labels = dataToChart.map(item => item.bulan);
+            myChart.data.datasets[0].data = dataToChart.map(item => item.scrapping);
+            myChart.data.datasets[1].data = dataToChart.map(item => item.aval);
+            myChart.data.datasets[2].data = dataToChart.map(item => item.millScalle);
+            myChart.data.datasets[3].data = dataToChart.map(item => item.pasirBesi);
+            myChart.data.datasets[4].data = dataToChart.map(item => item.stingCoal);
+            myChart.data.datasets[5].data = dataToChart.map(item => item.besiCor);
+            myChart.data.datasets[6].data = dataToChart.map(item => item.pasirConcentrate);
+            myChart.data.datasets[7].data = dataToChart.map(item => item.katalis);
+            myChart.data.datasets[8].data = dataToChart.map(item => item.steelShot);
+
+            myChart.update();
+        }
+
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+            const wsMon = XLSX.utils.table_to_sheet(document.getElementById("tblMonitoring"));
+            const wsKed = XLSX.utils.table_to_sheet(document.getElementById("tblKedatangan"));
+            const wsAv = XLSX.utils.table_to_sheet(document.getElementById("tblAval"));
+            
+            XLSX.utils.book_append_sheet(wb, wsMon, "Monitoring Stock");
+            XLSX.utils.book_append_sheet(wb, wsKed, "Kedatangan");
+            XLSX.utils.book_append_sheet(wb, wsAv, "Data Aval Master");
+            
+            XLSX.writeFile(wb, `Report_Material_PT_MSB.xlsx`);
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
