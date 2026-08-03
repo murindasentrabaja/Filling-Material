@@ -10,145 +10,242 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body {
-            background-color: #f4f6f9;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 25px;
+        :root {
+            --primary-dark: #003366;
+            --bg-body: #f4f7f6;
         }
+        body {
+            background-color: var(--bg-body);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 15px;
+        }
+        
+        /* Custom Scrollbar for better UI on Desktop */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8; 
+        }
+
         .header-title {
-            color: #003366;
+            color: var(--primary-dark);
             font-weight: 700;
             text-transform: uppercase;
-            margin-bottom: 25px;
-            border-bottom: 3px solid #003366;
+            border-bottom: 3px solid var(--primary-dark);
             padding-bottom: 10px;
+            margin-bottom: 0;
         }
+        
         .summary-card {
-            border-radius: 10px;
+            border-radius: 12px;
             color: white;
-            padding: 22px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
+            padding: 25px 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        .summary-card:hover { transform: translateY(-3px); }
-        .card-kedatangan { background: linear-gradient(45deg, #1d976c, #93f9b9); color: #fff; }
-        .card-penggunaan { background: linear-gradient(45deg, #eb3349, #f45c43); color: #fff; }
-        .card-sisa { background: linear-gradient(45deg, #1e3c72, #2a5298); color: #fff; }
+        .summary-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        .summary-card h6 {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        .summary-card h2 {
+            font-size: 2rem;
+            margin: 0;
+            word-break: break-word;
+        }
+
+        .card-kedatangan { background: linear-gradient(135deg, #1d976c, #93f9b9); }
+        .card-penggunaan { background: linear-gradient(135deg, #eb3349, #f45c43); }
+        .card-sisa { background: linear-gradient(135deg, #1e3c72, #2a5298); }
         
         .table-container {
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 20px;
             margin-top: 25px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
+        .table-container h5 {
+            font-size: 1.1rem;
+            border-left: 4px solid var(--primary-dark);
+            padding-left: 10px;
+        }
+
         .table-responsive {
-            max-height: 500px;
+            max-height: 450px;
             overflow-y: auto;
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
         }
-        .table thead {
-            background-color: #003366;
-            color: white;
+        
+        /* Ensure Sticky Header Works Flawlessly */
+        .table thead th {
+            background-color: var(--primary-dark) !important;
+            color: white !important;
             position: sticky;
             top: 0;
             z-index: 10;
+            box-shadow: inset 0 -1px 0 #000; /* Prevent transparency gap */
+            white-space: nowrap;
         }
+        
+        .table tbody td {
+            white-space: nowrap;
+        }
+
         .filter-section {
             background: white;
             padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            margin-top: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         .badge-material {
             background-color: #e3f2fd;
             color: #0d47a1;
             font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
         }
+
+        /* Mobile Adjustments */
+        @media (min-width: 768px) {
+            body { padding: 25px; }
+        }
+        @media (max-width: 767px) {
+            .header-title {
+                font-size: 1.5rem;
+                text-align: center;
+                border-bottom: none;
+            }
+            .header-title-wrapper {
+                border-bottom: 3px solid var(--primary-dark);
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+                width: 100%;
+            }
+            .summary-card h2 { font-size: 1.75rem; }
+        }
+
         @media print {
             .no-print { display: none !important; }
             body { background-color: white; padding: 0; }
-            .table-container { box-shadow: none; border: 1px solid #ddd; }
+            .table-container { box-shadow: none; border: 1px solid #ddd; margin-top: 15px; page-break-inside: avoid; }
+            .table-responsive { max-height: none; overflow: visible; border: none; }
+            .table thead th { position: static; box-shadow: none; }
         }
     </style>
 </head>
 <body>
 
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center flex-wrap no-print">
-            <h3 class="header-title">Portal Material Filling</h3>
-            <div class="mb-3">
-                <button class="btn btn-primary me-2" id="btnRefresh" onclick="loadData()">🔄 Sinkronisasi Data</button>
-                <button class="btn btn-secondary me-2" onclick="window.print()">🖨️ Cetak PDF</button>
-                <button class="btn btn-success" onclick="exportToExcel()">📊 Export Microsoft Excel</button>
+        <!-- Header & Action Buttons -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center flex-wrap no-print gap-3">
+            <div class="header-title-wrapper">
+                <h3 class="header-title">Portal Material Filling</h3>
+            </div>
+            <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-end w-100 w-md-auto">
+                <button class="btn btn-primary flex-fill flex-md-grow-0" id="btnRefresh" onclick="loadData()">
+                    🔄 Sinkronisasi Data
+                </button>
+                <button class="btn btn-secondary flex-fill flex-md-grow-0" onclick="window.print()">
+                    🖨️ Cetak PDF
+                </button>
+                <button class="btn btn-success flex-fill flex-md-grow-0" onclick="exportToExcel()">
+                    📊 Export Excel
+                </button>
             </div>
         </div>
 
+        <!-- Filter Section -->
         <div class="filter-section no-print">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Client</label>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label fw-bold small">Client</label>
                     <select id="filterClient" class="form-select" onchange="onClientChange()">
                         <option value="">-- Semua Client --</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Unit Number</label>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label fw-bold small">Unit Number</label>
                     <select id="filterUnit" class="form-select" onchange="filterTables()">
                         <option value="">-- Semua Unit --</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Periode Penggunaan</label>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label fw-bold small">Periode Penggunaan</label>
                     <select id="filterBulan" class="form-select" onchange="filterTables()">
                         <option value="">-- Semua Periode --</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Material (Kedatangan)</label>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label fw-bold small">Material (Kedatangan)</label>
                     <select id="filterMaterial" class="form-select" onchange="filterTables()">
                         <option value="">-- Semua Material --</option>
                     </select>
                 </div>
             </div>
-            <div class="text-end mt-2">
-                <span class="text-muted small">Terhubung MSB ERP System</span>
+            <div class="text-end mt-3 border-top pt-2">
+                <span class="text-muted small">🟢 Terhubung MSB ERP System</span>
             </div>
         </div>
 
+        <!-- Summary Cards -->
         <div class="row g-3">
-            <div class="col-md-4">
-                <div class="summary-card card-kedatangan">
+            <div class="col-12 col-md-4">
+                <div class="summary-card card-kedatangan text-center text-md-start">
                     <h6>Total Kedatangan</h6>
                     <h2 id="valKedatangan" class="fw-bold">0 Kg</h2>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="summary-card card-penggunaan">
+            <div class="col-12 col-md-4">
+                <div class="summary-card card-penggunaan text-center text-md-start">
                     <h6>Total Penggunaan</h6>
                     <h2 id="valPenggunaan" class="fw-bold">0 Kg</h2>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="summary-card card-sisa">
+            <div class="col-12 col-md-4">
+                <div class="summary-card card-sisa text-center text-md-start">
                     <h6>Sisa Stok Akhir</h6>
                     <h2 id="valSisa" class="fw-bold">0 Kg</h2>
                 </div>
             </div>
         </div>
 
+        <!-- Chart Section -->
         <div class="table-container">
-            <h5 class="fw-bold text-dark mb-3">📈 Tren Penggunaan Material per Bulan (Kg)</h5>
-            <div style="height: 350px;">
+            <h5 class="fw-bold text-dark mb-4">📈 Tren Penggunaan Material per Bulan (Kg)</h5>
+            <div style="position: relative; height: 350px; width: 100%;">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
 
+        <!-- Monitoring Table -->
         <div class="table-container">
             <h5 class="fw-bold text-dark mb-3">📌 Monitoring Material Filling</h5>
             <div class="table-responsive">
-                <table class="table table-bordered table-striped align-middle" id="tblMonitoring">
-                    <thead class="table-dark">
+                <table class="table table-bordered table-striped align-middle m-0" id="tblMonitoring">
+                    <thead>
                         <tr>
                             <th>Material Filling</th>
                             <th>Total Kedatangan</th>
@@ -157,16 +254,17 @@
                         </tr>
                     </thead>
                     <tbody id="bodyMonitoring">
-                        <tr><td colspan="4" class="text-center text-muted">Menunggu sinkronisasi...</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-3">Menunggu sinkronisasi...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
+        <!-- Arrival Table -->
         <div class="table-container">
             <h5 class="fw-bold text-dark mb-3">🚚 Kedatangan Material Filling</h5>
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle" id="tblKedatangan">
+                <table class="table table-hover table-striped align-middle m-0" id="tblKedatangan">
                     <thead>
                         <tr>
                             <th>Tanggal</th>
@@ -176,16 +274,17 @@
                         </tr>
                     </thead>
                     <tbody id="bodyKedatangan">
-                        <tr><td colspan="4" class="text-center text-muted">Menunggu sinkronisasi...</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-3">Menunggu sinkronisasi...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
+        <!-- Filling Process Table -->
         <div class="table-container">
             <h5 class="fw-bold text-dark mb-3">📋 Filling Process</h5>
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle small" id="tblAval" style="min-width: 1500px;">
+            <div class="table-responsive shadow-sm">
+                <table class="table table-bordered table-hover align-middle small m-0" id="tblAval" style="min-width: 1500px;">
                     <thead>
                         <tr>
                             <th>No</th>
@@ -207,7 +306,7 @@
                         </tr>
                     </thead>
                     <tbody id="bodyAval">
-                        <tr><td colspan="16" class="text-center text-muted">Menunggu sinkronisasi...</td></tr>
+                        <tr><td colspan="16" class="text-center text-muted py-3">Menunggu sinkronisasi...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -264,7 +363,7 @@
                     <td class="fw-bold">${row.material}</td>
                     <td>${row.jumlahStok}</td>
                     <td>${row.penggunaan}</td>
-                    <td class="table-primary fw-bold">${row.totalStock}</td>
+                    <td class="table-primary fw-bold text-primary">${row.totalStock}</td>
                 </tr>`;
             });
             bodyMon.innerHTML = htmlMon; 
@@ -333,7 +432,12 @@
             const bodyKed = document.getElementById("bodyKedatangan");
             let htmlKed = "";
             filteredKedatangan.forEach(row => {
-                htmlKed += `<tr><td>${row.tanggal}</td><td><span class="badge badge-material">${row.material}</span></td><td>${row.berat}</td><td>${row.supplier}</td></tr>`;
+                htmlKed += `<tr>
+                    <td>${row.tanggal}</td>
+                    <td><span class="badge-material">${row.material}</span></td>
+                    <td>${row.berat}</td>
+                    <td>${row.supplier}</td>
+                </tr>`;
             });
             bodyKed.innerHTML = htmlKed;
 
@@ -364,7 +468,7 @@
                     <td>${row.pasirConcentrate}</td>
                     <td>${row.katalis}</td>
                     <td>${row.steelShot}</td>
-                    <td class="table-success fw-bold">${row.total}</td>
+                    <td class="table-success fw-bold text-success">${row.total}</td>
                 </tr>`;
             });
             bodyAv.innerHTML = htmlAval;
@@ -397,7 +501,7 @@
                     maintainAspectRatio: false,
                     plugins: {
                         tooltip: { mode: 'index', intersect: false },
-                        legend: { position: 'bottom' }
+                        legend: { position: 'bottom', labels: { boxWidth: 12 } }
                     },
                     scales: {
                         x: { stacked: true },
